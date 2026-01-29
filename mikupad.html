@@ -3861,6 +3861,7 @@ function InstructTemplatesModal({ isOpen, closeModal, templateStorage, selectedT
 				"instPre": "",
 				"instSuf": "",
 				"fimTemplate": undefined,
+				"chatAutoAffix": true,
 			}
 			return { ...newState }
 		})
@@ -3881,6 +3882,7 @@ function InstructTemplatesModal({ isOpen, closeModal, templateStorage, selectedT
 				"instPre": templates[selectedTemplate]?.instPre,
 				"instSuf": templates[selectedTemplate]?.instSuf,
 				"fimTemplate": templates[selectedTemplate]?.fimTemplate,
+				"chatAutoAffix": templates[selectedTemplate]?.chatAutoAffix,
 			}
 			return { ...newState }
 		})
@@ -3965,6 +3967,7 @@ function InstructTemplatesModal({ isOpen, closeModal, templateStorage, selectedT
 					"instPre": template.affixes.instPre,
 					"instSuf": template.affixes.instSuf,
 					"fimTemplate": template.affixes.fimTemplate,
+					"chatAutoAffix": template.affixes.chatAutoAffix,
 				}
 			}
 			return { ...newState }
@@ -4165,6 +4168,17 @@ function InstructTemplatesModal({ isOpen, closeModal, templateStorage, selectedT
 							: html`
 								<div>This template doesn't have a Fill-In-The-Middle template.</div>
 								<div>You can use the <b>{predict}</b> placeholder to start the prediction from that point, but the model won't be aware of the text after the placeholder.</div>`}
+					</div>
+				</div>
+				<div className="hbox">
+					<div className="vbox">
+						<${Checkbox} label="Auto-add Affixes in Chat Mode"
+							title="When enabled, Chat Mode automatically adds Instruct Suffix after your input and Instruct Prefix after the model's response."
+							value=${getArrObjByName(templateList,selectedTemplate)?.affixes.chatAutoAffix !== false}
+							onValueChange=${(value) => handleInstructTemplateChange(selectedTemplate,"chatAutoAffix", value)}/>
+					</div>
+					<div id="advancedContextPlaceholders">
+						<div>Controls automatic insertion of instruct affixes during Chat Mode generation.</div>
 					</div>
 				</div>
 			</div>
@@ -7242,13 +7256,16 @@ export function App({ sessionStorage, templateStorage, themeStorage, useSessionS
 
 				// Chat Mode
 				if ((chatMode || useChatAPI) && !restartedPredict && templates[selectedTemplate]) {
-					// add user EOT template (instruct suffix) if not switch completion
-					const { instSuf, instPre } = replaceNewlines(templates[selectedTemplate]);
-					const instSufIndex = instSuf ? regexLastIndexOf(prompt, createLenientRegex(instSuf)) : -1;
-					const instPreIndex = instPre ? regexLastIndexOf(prompt, createLenientRegex(instPre)) : -1;
-					if (instSufIndex <= instPreIndex) {
-						setPromptChunks(p => [...p, { type: 'user', content: instSuf }])
-						prompt += instSuf;
+					const chatAutoAffix = templates[selectedTemplate].chatAutoAffix !== false;
+					if (chatAutoAffix) {
+						// add user EOT template (instruct suffix) if not switch completion
+						const { instSuf, instPre } = replaceNewlines(templates[selectedTemplate]);
+						const instSufIndex = instSuf ? regexLastIndexOf(prompt, createLenientRegex(instSuf)) : -1;
+						const instPreIndex = instPre ? regexLastIndexOf(prompt, createLenientRegex(instPre)) : -1;
+						if (instSufIndex <= instPreIndex) {
+							setPromptChunks(p => [...p, { type: 'user', content: instSuf }])
+							prompt += instSuf;
+						}
 					}
 				}
 				setRestartedPredict(false)
@@ -7458,10 +7475,13 @@ export function App({ sessionStorage, templateStorage, themeStorage, useSessionS
 
 		// Chat Mode
 		if (!callback && (chatMode || useChatAPI) && predictCount > 0) {
-			// add bot EOT template (instruct prefix)
-			const eotBot = templates[selectedTemplate]?.instPre.replace(/\\n/g, '\n')
-			setPromptChunks(p => [...p, { type: 'user', content: eotBot }])
-			prompt += `${eotBot}`
+			const chatAutoAffix = templates[selectedTemplate]?.chatAutoAffix !== false;
+			if (chatAutoAffix) {
+				// add bot EOT template (instruct prefix)
+				const eotBot = templates[selectedTemplate]?.instPre.replace(/\\n/g, '\n')
+				setPromptChunks(p => [...p, { type: 'user', content: eotBot }])
+				prompt += `${eotBot}`
+			}
 		}
 		
 		return true;
