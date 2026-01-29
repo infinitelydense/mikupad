@@ -6297,7 +6297,7 @@ function replaceUnprintableBytes(inputString) {
 
 function replaceNewlines(template) {
 	return Object.fromEntries(
-		Object.entries(template).map(([key, value]) => [key, value?.replaceAll("\\n", "\n")])
+		Object.entries(template).map(([key, value]) => [key, typeof value !== 'boolean' ? value?.replaceAll("\\n", "\n") : value])
 	);
 }
 
